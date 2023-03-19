@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="stars">
+        <item>Please select your activity</item>
+        <item>Football</item>
+        <item>Basketball</item>
+        <item>Concert</item>
+        <item>Tennis</item>
+        <item>Badminton</item>
+        <item>Zoo</item>
+        <item>Museum</item>
+    </string-array>
+</resources>

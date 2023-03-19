@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "415497159478",
+    "project_id": "ticketing-7641f",
+    "storage_bucket": "ticketing-7641f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:415497159478:android:281407102f6e2dcb466997",
+        "android_client_info": {
+          "package_name": "com.team17.secureticketing"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "415497159478-63ir7564sepqao9k47sp2dj46ecbbgvn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCG1rZfEYGoICY3-YSqe8lBZK3aWnhp05k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "415497159478-63ir7564sepqao9k47sp2dj46ecbbgvn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

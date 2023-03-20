@@ -38,5 +38,13 @@ public class QRData {
         this.cipherText = cipherText;
     }
 
-
+    @Override
+    public String toString() {
+        return "QRData{" +
+                "userName='" + userName + '\'' +
+                ", cipherText='" + cipherText + '\'' +
+                ", key='" + key + '\'' +
+                ", ivParameterSpec='" + ivParameterSpec + '\'' +
+                '}';
+    }
 }

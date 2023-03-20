@@ -3,14 +3,15 @@ package com.team17.secureticketing;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.CardView;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
 
 public class Home extends AppCompatActivity {
 
@@ -62,7 +63,7 @@ public class Home extends AppCompatActivity {
 //                Intent i=new Intent(Home.this,Verify_Fingerprint.class);
 //                startActivity(i);
 
-                Intent intent = new Intent(getApplicationContext(), ScanQR.class);
+                Intent intent = new Intent(getApplicationContext(), QRScanner.class);
 //                intent.putExtra(DEVICE_EXTRA, device);
 //                intent.putExtra(DEVICE_UUID, mDeviceUUID.toString());
 //                intent.putExtra(BUFFER_SIZE, mBufferSize);

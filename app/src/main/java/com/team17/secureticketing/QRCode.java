@@ -3,11 +3,15 @@ package com.team17.secureticketing;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Point;
+import android.os.Build;
 import android.os.Environment;
+
 import androidx.appcompat.app.AppCompatActivity;
+
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Display;
@@ -30,14 +34,32 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.zxing.WriterException;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.spec.EncodedKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +78,7 @@ import androidmads.library.qrgenearator.QRGSaver;
 
 public class QRCode extends AppCompatActivity {
 
-    private static final String IMAGE_DIRECTORY =  Environment.getExternalStorageDirectory().getPath() + "/EventQR/";
+    private static final String IMAGE_DIRECTORY = Environment.getExternalStorageDirectory().getPath() + "/EventQR/";
 
     String TAG = "GenerateQrCode";
 
@@ -65,7 +87,7 @@ public class QRCode extends AppCompatActivity {
 
     QRGEncoder mQRGEncoder;
 
-    Button mm, exit,save;
+    Button mm, exit, save;
 
     //FirebaseDatabase database=FirebaseDatabase.getInstance();
     //DatabaseReference reference= database.getReference("users");
@@ -100,10 +122,172 @@ public class QRCode extends AppCompatActivity {
 
         String cipherText;
 
+        //RSA Algorithm Check
+
+        KeyPairGenerator generator = null;
+        try {
+            generator = KeyPairGenerator.getInstance("RSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        generator.initialize(2048);
+        KeyPair pair = generator.generateKeyPair();
+
+
+        PrivateKey privateKey = pair.getPrivate();
+        PublicKey publicKey = pair.getPublic();
+
+        // Save the file
+        File file = new File(getFilesDir(), "public.key");
+
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(file);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        OutputStreamWriter osw = new OutputStreamWriter(fos);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                osw.write(Base64.getEncoder().encodeToString(publicKey.getEncoded()));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            osw.flush();
+            osw.close();
+            fos.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Save the file Private Key
+        File privateKeyFile = new File(getFilesDir(), "private.key");
+
+        FileOutputStream fos1 = null;
+        try {
+            fos1 = new FileOutputStream(privateKeyFile);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        OutputStreamWriter osw1 = new OutputStreamWriter(fos1);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                osw1.write(Base64.getEncoder().encodeToString(privateKey.getEncoded()));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            osw1.flush();
+            osw1.close();
+            fos1.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        //Read the File
+        File readFile = new File(getFilesDir(), "public.key");
+
+        FileInputStream fis = null;
+        try {
+            fis = new FileInputStream(readFile);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        InputStreamReader isr = new InputStreamReader(fis);
+        BufferedReader br = new BufferedReader(isr);
+
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while (true) {
+            try {
+                if (!((line = br.readLine()) != null)) break;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            sb.append(line);
+        }
+
+        String publicKeyText = sb.toString();
+
+        System.out.println("+++++++++++++++++++++++++++++++++++= " + publicKeyText);
+
+        try {
+            br.close();
+            isr.close();
+            fis.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        byte[] publicKeyBytes = new byte[0];
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            publicKeyBytes = Base64.getDecoder().decode(publicKeyText);
+        }
+
+
+        KeyFactory keyFactory = null;
+        try {
+            keyFactory = KeyFactory.getInstance("RSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (Base64.getEncoder().encodeToString(publicKey.getEncoded()).equals(Base64.getEncoder().encodeToString(publicKeyBytes))) {
+                System.out.println("its the same");
+            }
+            else {
+                System.out.println("not the same");
+            }
+        }
+
+        EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            System.out.println("this is the public key +++ " + Base64.getEncoder().encodeToString(publicKey.getEncoded()));
+        }
+
+        try {
+            keyFactory.generatePublic(publicKeySpec);
+        } catch (InvalidKeySpecException e) {
+            throw new RuntimeException(e);
+        }
+
+        Cipher encryptCipher = null;
+        try {
+            encryptCipher = Cipher.getInstance("RSA");
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
+
+        byte[] secretMessageBytes = mUser.getPnr().getBytes(StandardCharsets.UTF_8);
+        byte[] encryptedMessageBytes;
+        try {
+            encryptedMessageBytes = encryptCipher.doFinal(secretMessageBytes);
+        } catch (BadPaddingException | IllegalBlockSizeException e) {
+            throw new RuntimeException(e);
+        }
+
+        String encodedMessage = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            encodedMessage = Base64.getEncoder().encodeToString(encryptedMessageBytes);
+        }
+
+        //End RSA
+
         try {
             cipherText = this.encryptString(mUser.getPnr());
         } catch (NoSuchAlgorithmException | IllegalBlockSizeException | InvalidKeyException |
-                 BadPaddingException | InvalidAlgorithmParameterException | NoSuchPaddingException e) {
+                 BadPaddingException | InvalidAlgorithmParameterException |
+                 NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
 
@@ -115,7 +299,7 @@ public class QRCode extends AppCompatActivity {
         int height = point.y;
         int smallerdimen = width < height ? width : height;
         smallerdimen = smallerdimen * 3 / 4;
-        mQRGEncoder = new QRGEncoder(cipherText, null, QRGContents.Type.TEXT, smallerdimen);
+        mQRGEncoder = new QRGEncoder(encodedMessage, null, QRGContents.Type.TEXT, smallerdimen);
 
         try {
             mBitmap = mQRGEncoder.encodeAsBitmap();
@@ -128,10 +312,8 @@ public class QRCode extends AppCompatActivity {
 
         QRData dataStore = new QRData();
 
-        dataStore.setCipherText(cipherText);
+        dataStore.setCipherText(encodedMessage);
         dataStore.setUserName(mUser.getName());
-        dataStore.setKey(String.valueOf(this.key.getEncoded()));
-        dataStore.setIvParameterSpec(String.valueOf(this.ivParameterSpec.getIV()));
 
         firestore.collection("QRDetails").add(dataStore).addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
             @Override
@@ -143,30 +325,27 @@ public class QRCode extends AppCompatActivity {
         mRequestQueue = Volley.newRequestQueue(this);
 
 
-
 //        Toast.makeText(this, input, Toast.LENGTH_LONG).show();
 
         final ProgressDialog pd = new ProgressDialog(QRCode.this);
         pd.setMessage("Please Wait...");
         pd.setCanceledOnTouchOutside(false);
-      //  pd.show();
+        //  pd.show();
 
         save.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                try{
+                try {
 //                    QRGSaver.save(IMAGE_DIRECTORY,input.trim(),mBitmap,QRGContents.ImageType.IMAGE_JPEG);
-                    QRGSaver.save(IMAGE_DIRECTORY,"Team 17 Event",mBitmap,QRGContents.ImageType.IMAGE_JPEG);
-                }
-
-                catch (Exception e){
+                    QRGSaver.save(IMAGE_DIRECTORY, "Team 17 Event", mBitmap, QRGContents.ImageType.IMAGE_JPEG);
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
 
-                AlertDialog.Builder ab=new AlertDialog.Builder(QRCode.this);
+                AlertDialog.Builder ab = new AlertDialog.Builder(QRCode.this);
                 ab.setTitle("Info");
-                ab.setMessage("File Saved to "+IMAGE_DIRECTORY);
-                ab.setPositiveButton("OK",null);
+                ab.setMessage("File Saved to " + IMAGE_DIRECTORY);
+                ab.setPositiveButton("OK", null);
                 ab.show();
             }
         });
@@ -240,7 +419,7 @@ public class QRCode extends AppCompatActivity {
             BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter);
             bufferedWriter.write(input);
         } catch (Exception e) {
-            Log.e(TAG, "storeLatestQRCodePNR: ", e );
+            Log.e(TAG, "storeLatestQRCodePNR: ", e);
             e.printStackTrace();
         }
     }

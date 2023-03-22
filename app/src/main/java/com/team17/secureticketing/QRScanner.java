@@ -25,9 +25,20 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.List;
 
@@ -64,18 +75,14 @@ public class QRScanner extends AppCompatActivity {
         barLauncher.launch(options);
     }
 
-    ActivityResultLauncher<ScanOptions> barLauncher = registerForActivityResult(new ScanContract(), result ->
-    {
+    ActivityResultLauncher<ScanOptions> barLauncher = registerForActivityResult(new ScanContract(), result -> {
         if (result.getContents() != null) {
 
             //Getting the data from Firebase
 
             final String cipherText = result.getContents();
 
-
             firestore = FirebaseFirestore.getInstance();
-
-            System.out.println("before firebase call");
 
             firestore.collection("QRDetails").get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
 
@@ -91,16 +98,28 @@ public class QRScanner extends AppCompatActivity {
 
                         System.out.println("inside on success list full " + qrDataList.size());
 
-                        System.out.println(qrDataList.get(0).toString());
+                        String data;
 
                         for (QRData qrData : qrDataList) {
                             if (cipherText.equals(qrData.getCipherText())) {
                                 System.out.println(qrData.getUserName());
                                 customerData = qrData;
 
+                                System.out.println("++++++++++++=++++++++++++=++++++++++++=++++++++++++=++++++++++++= inside success");
+
+                                try {
+                                     data = decryptRSA(customerData.getCipherText());
+                                } catch (NoSuchPaddingException | NoSuchAlgorithmException |
+                                         IllegalBlockSizeException | BadPaddingException |
+                                         InvalidKeyException | InvalidKeySpecException e) {
+                                    throw new RuntimeException(e);
+                                }
+
+                                System.out.println(" This is the decrypted text +++++++++++++++++++++++ " + data);
+
                                 AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
                                 builder.setTitle("Ticket Details");
-                                builder.setMessage(customerData.toString());
+                                builder.setMessage("PNR Number :  " + data);
                                 builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                                     @Override
                                     public void onClick(DialogInterface dialogInterface, int i) {
@@ -113,10 +132,6 @@ public class QRScanner extends AppCompatActivity {
                     }
                 }
             });
-
-            //Decryption
-
-            //String refNo = decrypt(algorithm, cipherText, customerData.getKey(), customerData.getIvParameterSpec());
 
 
         } else {
@@ -135,19 +150,63 @@ public class QRScanner extends AppCompatActivity {
     });
 
 
-    public static String decrypt(String algorithm, String cipherText, SecretKey key,
-                                 IvParameterSpec iv) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidAlgorithmParameterException, InvalidKeyException,
-            BadPaddingException, IllegalBlockSizeException {
+//    public static String decrypt(String algorithm, String cipherText, SecretKey key, IvParameterSpec iv) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+//
+//        Cipher cipher = Cipher.getInstance(algorithm);
+//        cipher.init(Cipher.DECRYPT_MODE, key, iv);
+//        byte[] plainText = new byte[0];
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+//            plainText = cipher.doFinal(Base64.getDecoder().decode(cipherText));
+//        }
+//        return new String(plainText);
+//    }
 
-        Cipher cipher = Cipher.getInstance(algorithm);
-        cipher.init(Cipher.DECRYPT_MODE, key, iv);
-        byte[] plainText = new byte[0];
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            plainText = cipher.doFinal(Base64.getDecoder()
-                    .decode(cipherText));
+    public String decryptRSA(String cipherTextFinal) throws NoSuchPaddingException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
+
+        Cipher decryptCipher = Cipher.getInstance("RSA");
+
+        //Read the File Private Key
+        File readFile = new File(getFilesDir(), "private.key");
+
+        FileInputStream fis = null;
+        try {
+            fis = new FileInputStream(readFile);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
         }
-        return new String(plainText);
+        InputStreamReader isr = new InputStreamReader(fis);
+        BufferedReader br = new BufferedReader(isr);
+
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while (true) {
+            try {
+                if (!((line = br.readLine()) != null)) break;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            sb.append(line);
+        }
+
+        String privateKeyText = sb.toString();
+
+        byte[] privateKeyBytes = new byte[0];
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            privateKeyBytes = Base64.getDecoder().decode(privateKeyText);
+        }
+
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privateKeyBytes));
+
+        decryptCipher.init(Cipher.DECRYPT_MODE, privateKey);
+
+        byte[] decryptedMessageBytes = new byte[0];
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            decryptedMessageBytes = decryptCipher.doFinal(Base64.getDecoder().decode(cipherTextFinal));
+        }
+        String decryptedMessage = new String(decryptedMessageBytes, StandardCharsets.UTF_8);
+
+        return decryptedMessage;
     }
 
 }

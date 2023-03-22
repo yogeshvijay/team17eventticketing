@@ -89,9 +89,6 @@ public class QRCode extends AppCompatActivity {
 
     Button mm, exit, save;
 
-    //FirebaseDatabase database=FirebaseDatabase.getInstance();
-    //DatabaseReference reference= database.getReference("users");
-
     RequestQueue mRequestQueue;
 
     FirebaseFirestore firestore;
@@ -122,7 +119,152 @@ public class QRCode extends AppCompatActivity {
 
         String cipherText;
 
-        //RSA Algorithm Check
+        //String encodedMessage = this.encryptWithRSA(mUser.getPnr());
+
+        try {
+            cipherText = this.encryptString(mUser.getPnr());
+        } catch (NoSuchAlgorithmException | IllegalBlockSizeException | InvalidKeyException |
+                 BadPaddingException | InvalidAlgorithmParameterException |
+                 NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
+
+        String encodedKey = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            encodedKey = this.encryptWithRSA(Base64.getEncoder().encodeToString(this.key.getEncoded()));
+        }
+
+        WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        Display display = windowManager.getDefaultDisplay();
+        Point point = new Point();
+        display.getSize(point);
+        int width = point.x;
+        int height = point.y;
+        int smallerdimen = width < height ? width : height;
+        smallerdimen = smallerdimen * 3 / 4;
+        mQRGEncoder = new QRGEncoder(cipherText, null, QRGContents.Type.TEXT, smallerdimen);
+
+        try {
+            mBitmap = mQRGEncoder.encodeAsBitmap();
+            qrimg.setImageBitmap(mBitmap);
+        } catch (WriterException e) {
+            Log.v(TAG, e.toString());
+        }
+
+        firestore = FirebaseFirestore.getInstance();
+
+        QRData dataStore = new QRData();
+
+        dataStore.setEncryptedData(cipherText);
+        dataStore.setTicketHolder(mUser.getName());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            dataStore.setInitialVector(Base64.getEncoder().encodeToString(this.ivParameterSpec.getIV()));
+        }
+        dataStore.setEncryptedKey(encodedKey);
+
+        firestore.collection("QRDetails").add(dataStore).addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+            @Override
+            public void onSuccess(DocumentReference documentReference) {
+                Toast.makeText(getApplicationContext(), "Success", Toast.LENGTH_LONG).show();
+            }
+        });
+
+        mRequestQueue = Volley.newRequestQueue(this);
+
+        final ProgressDialog pd = new ProgressDialog(QRCode.this);
+        pd.setMessage("Please Wait...");
+        pd.setCanceledOnTouchOutside(false);
+        //  pd.show();
+
+        save.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                try {
+//                    QRGSaver.save(IMAGE_DIRECTORY,input.trim(),mBitmap,QRGContents.ImageType.IMAGE_JPEG);
+                    QRGSaver.save(IMAGE_DIRECTORY, "Team 17 Event", mBitmap, QRGContents.ImageType.IMAGE_JPEG);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                AlertDialog.Builder ab = new AlertDialog.Builder(QRCode.this);
+                ab.setTitle("Info");
+                ab.setMessage("File Saved to " + IMAGE_DIRECTORY);
+                ab.setPositiveButton("OK", null);
+                ab.show();
+            }
+        });
+
+        mm.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent i = new Intent(QRCode.this, Home.class);
+                startActivity(i);
+                finish();
+            }
+        });
+
+        exit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finishAffinity();
+            }
+        });
+
+    }
+
+    //Start of AES Encryption
+
+    public static SecretKey generateKey(int n) throws NoSuchAlgorithmException {
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+        keyGenerator.init(n);
+        SecretKey key = keyGenerator.generateKey();
+        return key;
+    }
+
+    public static IvParameterSpec generateIv() {
+        byte[] iv = new byte[16];
+        new SecureRandom().nextBytes(iv);
+        return new IvParameterSpec(iv);
+    }
+
+    @SuppressLint("NewApi")
+    public static String encrypt(String algorithm, String input, SecretKey key, IvParameterSpec iv) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+
+        Cipher cipher = Cipher.getInstance(algorithm);
+        cipher.init(Cipher.ENCRYPT_MODE, key, iv);
+        byte[] cipherText = cipher.doFinal(input.getBytes());
+        return Base64.getEncoder().encodeToString(cipherText);
+    }
+
+    private String encryptString(String input) throws NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException {
+
+        this.key = this.generateKey(128);
+        this.ivParameterSpec = this.generateIv();
+        String algorithm = "AES/CBC/PKCS5Padding";
+        String cipherText = this.encrypt(algorithm, input, key, ivParameterSpec);
+
+        return cipherText;
+
+    }
+
+    // End of AES Encryption
+
+    private void storeLatestQRCodePNR(String input) {
+        try {
+            File file = new File(getFilesDir(), "latest_QR_PNR.txt");
+            FileOutputStream fileOutputStream = new FileOutputStream(file);
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream);
+            BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter);
+            bufferedWriter.write(input);
+        } catch (Exception e) {
+            Log.e(TAG, "storeLatestQRCodePNR: ", e);
+            e.printStackTrace();
+        }
+    }
+
+    public String encryptWithRSA(String plaintext) {
+
+        //RSA Algorithm Starts
 
         KeyPairGenerator generator = null;
         try {
@@ -212,8 +354,6 @@ public class QRCode extends AppCompatActivity {
 
         String publicKeyText = sb.toString();
 
-        System.out.println("+++++++++++++++++++++++++++++++++++= " + publicKeyText);
-
         try {
             br.close();
             isr.close();
@@ -227,7 +367,6 @@ public class QRCode extends AppCompatActivity {
             publicKeyBytes = Base64.getDecoder().decode(publicKeyText);
         }
 
-
         KeyFactory keyFactory = null;
         try {
             keyFactory = KeyFactory.getInstance("RSA");
@@ -235,21 +374,7 @@ public class QRCode extends AppCompatActivity {
             throw new RuntimeException(e);
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (Base64.getEncoder().encodeToString(publicKey.getEncoded()).equals(Base64.getEncoder().encodeToString(publicKeyBytes))) {
-                System.out.println("its the same");
-            }
-            else {
-                System.out.println("not the same");
-            }
-        }
-
         EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            System.out.println("this is the public key +++ " + Base64.getEncoder().encodeToString(publicKey.getEncoded()));
-        }
-
         try {
             keyFactory.generatePublic(publicKeySpec);
         } catch (InvalidKeySpecException e) {
@@ -268,7 +393,7 @@ public class QRCode extends AppCompatActivity {
             throw new RuntimeException(e);
         }
 
-        byte[] secretMessageBytes = mUser.getPnr().getBytes(StandardCharsets.UTF_8);
+        byte[] secretMessageBytes = plaintext.getBytes(StandardCharsets.UTF_8);
         byte[] encryptedMessageBytes;
         try {
             encryptedMessageBytes = encryptCipher.doFinal(secretMessageBytes);
@@ -283,145 +408,8 @@ public class QRCode extends AppCompatActivity {
 
         //End RSA
 
-        try {
-            cipherText = this.encryptString(mUser.getPnr());
-        } catch (NoSuchAlgorithmException | IllegalBlockSizeException | InvalidKeyException |
-                 BadPaddingException | InvalidAlgorithmParameterException |
-                 NoSuchPaddingException e) {
-            throw new RuntimeException(e);
-        }
+        return encodedMessage;
 
-        WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        Display display = windowManager.getDefaultDisplay();
-        Point point = new Point();
-        display.getSize(point);
-        int width = point.x;
-        int height = point.y;
-        int smallerdimen = width < height ? width : height;
-        smallerdimen = smallerdimen * 3 / 4;
-        mQRGEncoder = new QRGEncoder(encodedMessage, null, QRGContents.Type.TEXT, smallerdimen);
-
-        try {
-            mBitmap = mQRGEncoder.encodeAsBitmap();
-            qrimg.setImageBitmap(mBitmap);
-        } catch (WriterException e) {
-            Log.v(TAG, e.toString());
-        }
-
-        firestore = FirebaseFirestore.getInstance();
-
-        QRData dataStore = new QRData();
-
-        dataStore.setCipherText(encodedMessage);
-        dataStore.setUserName(mUser.getName());
-
-        firestore.collection("QRDetails").add(dataStore).addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
-            @Override
-            public void onSuccess(DocumentReference documentReference) {
-                Toast.makeText(getApplicationContext(), "Success", Toast.LENGTH_LONG).show();
-            }
-        });
-
-        mRequestQueue = Volley.newRequestQueue(this);
-
-
-//        Toast.makeText(this, input, Toast.LENGTH_LONG).show();
-
-        final ProgressDialog pd = new ProgressDialog(QRCode.this);
-        pd.setMessage("Please Wait...");
-        pd.setCanceledOnTouchOutside(false);
-        //  pd.show();
-
-        save.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                try {
-//                    QRGSaver.save(IMAGE_DIRECTORY,input.trim(),mBitmap,QRGContents.ImageType.IMAGE_JPEG);
-                    QRGSaver.save(IMAGE_DIRECTORY, "Team 17 Event", mBitmap, QRGContents.ImageType.IMAGE_JPEG);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-                AlertDialog.Builder ab = new AlertDialog.Builder(QRCode.this);
-                ab.setTitle("Info");
-                ab.setMessage("File Saved to " + IMAGE_DIRECTORY);
-                ab.setPositiveButton("OK", null);
-                ab.show();
-            }
-        });
-
-        mm.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent i = new Intent(QRCode.this, Home.class);
-                startActivity(i);
-                finish();
-            }
-        });
-
-        exit.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                finishAffinity();
-            }
-        });
-
-    }
-
-    //Start of AES Encryption
-
-    public static SecretKey generateKey(int n) throws NoSuchAlgorithmException {
-        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        keyGenerator.init(n);
-        SecretKey key = keyGenerator.generateKey();
-        return key;
-    }
-
-    public static IvParameterSpec generateIv() {
-        byte[] iv = new byte[16];
-        new SecureRandom().nextBytes(iv);
-        return new IvParameterSpec(iv);
-    }
-
-    @SuppressLint("NewApi")
-    public static String encrypt(String algorithm, String input, SecretKey key,
-                                 IvParameterSpec iv) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidAlgorithmParameterException, InvalidKeyException,
-            BadPaddingException, IllegalBlockSizeException {
-
-        Cipher cipher = Cipher.getInstance(algorithm);
-        cipher.init(Cipher.ENCRYPT_MODE, key, iv);
-        byte[] cipherText = cipher.doFinal(input.getBytes());
-        return Base64.getEncoder()
-                .encodeToString(cipherText);
-    }
-
-    private String encryptString(String input)
-            throws NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException,
-            BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException {
-
-        this.key = this.generateKey(128);
-        this.ivParameterSpec = this.generateIv();
-        String algorithm = "AES/CBC/PKCS5Padding";
-        String cipherText = this.encrypt(algorithm, input, key, ivParameterSpec);
-
-        return cipherText;
-
-    }
-
-    // End of AES Encryption
-
-    private void storeLatestQRCodePNR(String input) {
-        try {
-            File file = new File(getFilesDir(), "latest_QR_PNR.txt");
-            FileOutputStream fileOutputStream = new FileOutputStream(file);
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream);
-            BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter);
-            bufferedWriter.write(input);
-        } catch (Exception e) {
-            Log.e(TAG, "storeLatestQRCodePNR: ", e);
-            e.printStackTrace();
-        }
     }
 
 

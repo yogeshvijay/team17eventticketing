@@ -5,46 +5,47 @@ import javax.crypto.spec.IvParameterSpec;
 
 public class QRData {
 
-    String userName,cipherText,key,ivParameterSpec;
+    String ticketHolder, encryptedData, initialVector, encryptedKey;
 
-    public String getKey() {
-        return key;
+    public String getTicketHolder() {
+        return ticketHolder;
     }
 
-    public void setKey(String key) {
-        this.key = key;
+    public void setTicketHolder(String ticketHolder) {
+        this.ticketHolder = ticketHolder;
     }
 
-    public String getIvParameterSpec() {
-        return ivParameterSpec;
+    public String getEncryptedData() {
+        return encryptedData;
     }
 
-    public void setIvParameterSpec(String ivParameterSpec) {
-        this.ivParameterSpec = ivParameterSpec;
+    public void setEncryptedData(String encryptedData) {
+        this.encryptedData = encryptedData;
     }
 
-    public String getUserName() {
-        return userName;
+    public String getInitialVector() {
+        return initialVector;
     }
 
-    public void setUserName(String userName) {
-        this.userName = userName;
+    public void setInitialVector(String initialVector) {
+        this.initialVector = initialVector;
     }
 
-    public String getCipherText() {
-        return cipherText;
+    public String getEncryptedKey() {
+        return encryptedKey;
     }
-    public void setCipherText(String cipherText) {
-        this.cipherText = cipherText;
+
+    public void setEncryptedKey(String encryptedKey) {
+        this.encryptedKey = encryptedKey;
     }
 
     @Override
     public String toString() {
         return "QRData{" +
-                "userName='" + userName + '\'' +
-                ", cipherText='" + cipherText + '\'' +
-                ", key='" + key + '\'' +
-                ", ivParameterSpec='" + ivParameterSpec + '\'' +
+                "ticketHolder='" + ticketHolder + '\'' +
+                ", encryptedData='" + encryptedData + '\'' +
+                ", initialVector='" + initialVector + '\'' +
+                ", encryptedKey='" + encryptedKey + '\'' +
                 '}';
     }
 }

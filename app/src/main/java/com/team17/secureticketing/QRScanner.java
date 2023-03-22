@@ -48,6 +48,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 public class QRScanner extends AppCompatActivity {
 
@@ -101,26 +102,34 @@ public class QRScanner extends AppCompatActivity {
                         String data;
 
                         for (QRData qrData : qrDataList) {
-                            if (cipherText.equals(qrData.getCipherText())) {
-                                System.out.println(qrData.getUserName());
+                            if (cipherText.equals(qrData.getEncryptedData())) {
+                                System.out.println(qrData.getTicketHolder());
                                 customerData = qrData;
 
-                                System.out.println("++++++++++++=++++++++++++=++++++++++++=++++++++++++=++++++++++++= inside success");
-
                                 try {
-                                     data = decryptRSA(customerData.getCipherText());
+                                    data = decryptAES(customerData);
                                 } catch (NoSuchPaddingException | NoSuchAlgorithmException |
                                          IllegalBlockSizeException | BadPaddingException |
-                                         InvalidKeyException | InvalidKeySpecException e) {
+                                         InvalidKeyException | InvalidAlgorithmParameterException |
+                                         InvalidKeySpecException e) {
                                     throw new RuntimeException(e);
                                 }
 
-                                System.out.println(" This is the decrypted text +++++++++++++++++++++++ " + data);
+                                AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
+                                builder.setTitle("Ticket Details");
+                                builder.setMessage("Reference Number :  " + data + "\n" + "Ticket Holder : " + customerData.getTicketHolder());
+                                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        dialogInterface.dismiss();
+                                    }
+                                }).show();
+                            } else {
 
                                 AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
                                 builder.setTitle("Ticket Details");
-                                builder.setMessage("PNR Number :  " + data);
-                                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                builder.setMessage("Not a valid QR Code");
+                                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                                     @Override
                                     public void onClick(DialogInterface dialogInterface, int i) {
                                         dialogInterface.dismiss();
@@ -128,17 +137,14 @@ public class QRScanner extends AppCompatActivity {
                                 }).show();
                             }
                         }
-
                     }
                 }
             });
-
-
         } else {
 
             AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
             builder.setTitle("Ticket Details");
-            builder.setMessage("Not a valid QR Code");
+            builder.setMessage("QR Details Not Fetched");
             builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialogInterface, int i) {
@@ -149,19 +155,7 @@ public class QRScanner extends AppCompatActivity {
         }
     });
 
-
-//    public static String decrypt(String algorithm, String cipherText, SecretKey key, IvParameterSpec iv) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-//
-//        Cipher cipher = Cipher.getInstance(algorithm);
-//        cipher.init(Cipher.DECRYPT_MODE, key, iv);
-//        byte[] plainText = new byte[0];
-//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-//            plainText = cipher.doFinal(Base64.getDecoder().decode(cipherText));
-//        }
-//        return new String(plainText);
-//    }
-
-    public String decryptRSA(String cipherTextFinal) throws NoSuchPaddingException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
+    public String decryptRSA(String cipherText) throws NoSuchPaddingException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
 
         Cipher decryptCipher = Cipher.getInstance("RSA");
 
@@ -202,11 +196,38 @@ public class QRScanner extends AppCompatActivity {
 
         byte[] decryptedMessageBytes = new byte[0];
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            decryptedMessageBytes = decryptCipher.doFinal(Base64.getDecoder().decode(cipherTextFinal));
+            decryptedMessageBytes = decryptCipher.doFinal(Base64.getDecoder().decode(cipherText));
         }
         String decryptedMessage = new String(decryptedMessageBytes, StandardCharsets.UTF_8);
 
         return decryptedMessage;
+    }
+
+    public String decryptAES(QRData customerData) throws NoSuchPaddingException, NoSuchAlgorithmException,
+            InvalidAlgorithmParameterException, InvalidKeyException,
+            BadPaddingException, IllegalBlockSizeException, InvalidKeySpecException {
+
+        String decryptedKey = decryptRSA(customerData.getEncryptedKey());
+        String algorithm = "AES/CBC/PKCS5Padding";
+
+        byte[] secretKeyBytes = new byte[0];
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            secretKeyBytes = Base64.getDecoder().decode(decryptedKey);
+        }
+
+        SecretKey originalKey = new SecretKeySpec(secretKeyBytes, 0, secretKeyBytes.length, "AES");
+        IvParameterSpec iv = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            iv = new IvParameterSpec(Base64.getDecoder().decode(customerData.getInitialVector()));
+        }
+
+        Cipher cipher = Cipher.getInstance(algorithm);
+        cipher.init(Cipher.DECRYPT_MODE, originalKey, iv);
+        byte[] plainText = new byte[0];
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            plainText = cipher.doFinal(Base64.getDecoder().decode(customerData.getEncryptedData()));
+        }
+        return new String(plainText);
     }
 
 }

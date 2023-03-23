@@ -59,6 +59,7 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
@@ -131,7 +132,11 @@ public class QRCode extends AppCompatActivity {
 
         String encodedKey = null;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            encodedKey = this.encryptWithRSA(Base64.getEncoder().encodeToString(this.key.getEncoded()));
+            try {
+                encodedKey = this.encryptWithRSA(Base64.getEncoder().encodeToString(this.key.getEncoded()));
+            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
@@ -262,72 +267,72 @@ public class QRCode extends AppCompatActivity {
         }
     }
 
-    public String encryptWithRSA(String plaintext) {
+    public String encryptWithRSA(String plaintext) throws NoSuchAlgorithmException, InvalidKeySpecException {
 
         //RSA Algorithm Starts
 
-        KeyPairGenerator generator = null;
-        try {
-            generator = KeyPairGenerator.getInstance("RSA");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        generator.initialize(2048);
-        KeyPair pair = generator.generateKeyPair();
+//        KeyPairGenerator generator = null;
+//        try {
+//            generator = KeyPairGenerator.getInstance("RSA");
+//        } catch (NoSuchAlgorithmException e) {
+//            throw new RuntimeException(e);
+//        }
+//        generator.initialize(2048);
+//        KeyPair pair = generator.generateKeyPair();
+//
+//
+//        PrivateKey privateKey = pair.getPrivate();
+//        PublicKey publicKey = pair.getPublic();
 
-
-        PrivateKey privateKey = pair.getPrivate();
-        PublicKey publicKey = pair.getPublic();
-
-        // Save the file
-        File file = new File(getFilesDir(), "public.key");
-
-        FileOutputStream fos = null;
-        try {
-            fos = new FileOutputStream(file);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        OutputStreamWriter osw = new OutputStreamWriter(fos);
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                osw.write(Base64.getEncoder().encodeToString(publicKey.getEncoded()));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            osw.flush();
-            osw.close();
-            fos.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        // Save the file Private Key
-        File privateKeyFile = new File(getFilesDir(), "private.key");
-
-        FileOutputStream fos1 = null;
-        try {
-            fos1 = new FileOutputStream(privateKeyFile);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        OutputStreamWriter osw1 = new OutputStreamWriter(fos1);
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                osw1.write(Base64.getEncoder().encodeToString(privateKey.getEncoded()));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            osw1.flush();
-            osw1.close();
-            fos1.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+//        // Save the file
+//        File file = new File(getFilesDir(), "public.key");
+//
+//        FileOutputStream fos = null;
+//        try {
+//            fos = new FileOutputStream(file);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        }
+//        OutputStreamWriter osw = new OutputStreamWriter(fos);
+//        try {
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                osw.write(Base64.getEncoder().encodeToString(publicKey.getEncoded()));
+//            }
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//        try {
+//            osw.flush();
+//            osw.close();
+//            fos.close();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//
+//        // Save the file Private Key
+//        File privateKeyFile = new File(getFilesDir(), "private.key");
+//
+//        FileOutputStream fos1 = null;
+//        try {
+//            fos1 = new FileOutputStream(privateKeyFile);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        }
+//        OutputStreamWriter osw1 = new OutputStreamWriter(fos1);
+//        try {
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                osw1.write(Base64.getEncoder().encodeToString(privateKey.getEncoded()));
+//            }
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//        try {
+//            osw1.flush();
+//            osw1.close();
+//            fos1.close();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
 
         //Read the File
         File readFile = new File(getFilesDir(), "public.key");
@@ -367,19 +372,19 @@ public class QRCode extends AppCompatActivity {
             publicKeyBytes = Base64.getDecoder().decode(publicKeyText);
         }
 
-        KeyFactory keyFactory = null;
-        try {
-            keyFactory = KeyFactory.getInstance("RSA");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-
-        EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-        try {
-            keyFactory.generatePublic(publicKeySpec);
-        } catch (InvalidKeySpecException e) {
-            throw new RuntimeException(e);
-        }
+//        KeyFactory keyFactory = null;
+//        try {
+//            keyFactory = KeyFactory.getInstance("RSA");
+//        } catch (NoSuchAlgorithmException e) {
+//            throw new RuntimeException(e);
+//        }
+//
+//        EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+//        try {
+//            keyFactory.generatePublic(publicKeySpec);
+//        } catch (InvalidKeySpecException e) {
+//            throw new RuntimeException(e);
+//        }
 
         Cipher encryptCipher = null;
         try {
@@ -387,6 +392,10 @@ public class QRCode extends AppCompatActivity {
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
+
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PublicKey publicKey = kf.generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+
         try {
             encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
         } catch (InvalidKeyException e) {

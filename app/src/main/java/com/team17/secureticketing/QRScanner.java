@@ -85,47 +85,16 @@ public class QRScanner extends AppCompatActivity {
 
             firestore = FirebaseFirestore.getInstance();
 
-            firestore.collection("QRDetails").get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+            firestore.collection("QRDetails")
+                    .whereEqualTo("encryptedData", cipherText)
+                    .get()
+                    .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
 
-                @Override
-                public void onSuccess(QuerySnapshot documentSnapshots) {
+                        @Override
+                        public void onSuccess(QuerySnapshot documentSnapshots) {
 
-                    if (documentSnapshots.isEmpty()) {
-                        Log.d(TAG, "onSuccess: LIST EMPTY");
-                        return;
-                    } else {
-
-                        List<QRData> qrDataList = documentSnapshots.toObjects(QRData.class);
-
-                        System.out.println("inside on success list full " + qrDataList.size());
-
-                        String data;
-
-                        for (QRData qrData : qrDataList) {
-                            if (cipherText.equals(qrData.getEncryptedData())) {
-                                System.out.println(qrData.getTicketHolder());
-                                customerData = qrData;
-
-                                try {
-                                    data = decryptAES(customerData);
-                                } catch (NoSuchPaddingException | NoSuchAlgorithmException |
-                                         IllegalBlockSizeException | BadPaddingException |
-                                         InvalidKeyException | InvalidAlgorithmParameterException |
-                                         InvalidKeySpecException e) {
-                                    throw new RuntimeException(e);
-                                }
-
-                                AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
-                                builder.setTitle("Ticket Details");
-                                builder.setMessage("Reference Number :  " + data + "\n" + "Ticket Holder : " + customerData.getTicketHolder());
-                                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialogInterface, int i) {
-                                        dialogInterface.dismiss();
-                                    }
-                                }).show();
-                            } else {
-
+                            if (documentSnapshots.isEmpty()) {
+                                Log.d(TAG, "onSuccess: LIST EMPTY");
                                 AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
                                 builder.setTitle("Ticket Details");
                                 builder.setMessage("Not a valid QR Code");
@@ -135,11 +104,44 @@ public class QRScanner extends AppCompatActivity {
                                         dialogInterface.dismiss();
                                     }
                                 }).show();
+                                //return;
+                            } else {
+
+                                List<QRData> qrDataList = documentSnapshots.toObjects(QRData.class);
+
+                                System.out.println("inside on success list full " + qrDataList.size());
+
+                                String data;
+
+                                for (QRData qrData : qrDataList) {
+                                    if (cipherText.equals(qrData.getEncryptedData())) {
+                                        System.out.println(qrData.getTicketHolder());
+                                        customerData = qrData;
+
+                                        try {
+                                            data = decryptAES(customerData);
+                                        } catch (NoSuchPaddingException | NoSuchAlgorithmException |
+                                                 IllegalBlockSizeException | BadPaddingException |
+                                                 InvalidKeyException |
+                                                 InvalidAlgorithmParameterException |
+                                                 InvalidKeySpecException e) {
+                                            throw new RuntimeException(e);
+                                        }
+
+                                        AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
+                                        builder.setTitle("Ticket Details");
+                                        builder.setMessage("Reference Number :  " + data + "\n" + "Ticket Holder : " + customerData.getTicketHolder());
+                                        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialogInterface, int i) {
+                                                dialogInterface.dismiss();
+                                            }
+                                        }).show();
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-            });
+                    });
         } else {
 
             AlertDialog.Builder builder = new AlertDialog.Builder(QRScanner.this);
@@ -208,6 +210,8 @@ public class QRScanner extends AppCompatActivity {
             BadPaddingException, IllegalBlockSizeException, InvalidKeySpecException {
 
         String decryptedKey = decryptRSA(customerData.getEncryptedKey());
+
+        System.out.println("++++++++++++++++++ " + decryptedKey);
         String algorithm = "AES/CBC/PKCS5Padding";
 
         byte[] secretKeyBytes = new byte[0];
